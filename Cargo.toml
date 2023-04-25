@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 mobi = "0.8"
 epub = "1.2.2"
+epub-builder = "0.4"
