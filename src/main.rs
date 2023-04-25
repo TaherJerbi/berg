@@ -1,43 +1,40 @@
-use std::{error::Error, fs};
+use std::{error::Error, fs, io::{Read, Write}, str::from_utf8};
 
 use berg::style_text;
-use epub::doc::EpubDoc;
-use epub_builder::{EpubBuilder, ZipLibrary, EpubContent};
+use zip;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let mut doc = EpubDoc::new("rust.epub").unwrap();
+fn main() -> Result<(), Box<dyn Error>>{
+    let reader = fs::File::open("rust.epub").unwrap();
+    let out = fs::File::create("rust_.epub").unwrap();
+    let mut zip = zip::ZipArchive::new(reader)?;
+    let mut out_zip = zip::ZipWriter::new(out);
+    for i in 0..zip.len() {
+        let mut file = zip.by_index(i)?;
+        
+        println!("Filename: {}", file.name());
 
-    let creator = doc.mdata("creator").unwrap_or("".to_owned());
-    let title = doc.mdata("title").unwrap_or("".to_owned());
-    let zip = ZipLibrary::new()?;
-    // Create a new EpubBuilder using the zip library
-    let mut builder = EpubBuilder::new(zip)?;
-    // Set some metadata
-    builder.metadata("author", creator)?;
-    builder.metadata("title", title)?;
+        let options = zip::write::FileOptions::default()
+            .compression_method(file.compression());
+        
+        out_zip.start_file(file.name(), options)?;
+        let mut buf = Vec::new();
+        file.read_to_end(&mut buf)?;
+        
+        if file.name().ends_with(".xhtml") {
+            let content = from_utf8(&buf)
+                .unwrap()
+                .to_owned();
 
-    let resources = doc.resources.clone();
-    let spine = doc.spine.clone();
-
-    // Put all resources except chapters
-    for (resource_id, (resource_path, resource_mime)) in &resources {
-        if resource_mime != "application/xhtml+xml" {
-            let content = &mut doc.get_resource(&resource_id)?;
-            builder.add_resource(
-                resource_path.to_str().unwrap(), &content[..], resource_mime)?;
+            let styled_content = style_html_content(content);
+            
+            out_zip.write(styled_content.as_bytes())?;
+        } else {
+            out_zip.write(&buf)?;
         }
     }
 
-    for content_id in spine {
-        let (path, mime) = &resources.get(&content_id).unwrap();
-        let content = doc.get_resource_str(&content_id).unwrap();
-        let styled_content = style_html_content(content);
-        dbg!(&path);
-        builder.add_content(EpubContent::new(path.to_str().unwrap(), styled_content.as_bytes()))?;
-    }
+    out_zip.finish()?;
 
-    builder.generate(fs::File::create("rust_.epub").unwrap())?;
-        
     Ok(())
 }
 
