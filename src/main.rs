@@ -26,7 +26,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         file.read_to_end(&mut buf)?;
 
         if file.name().ends_with(".xhtml") {
-            println!("Filename: {}", file.name());
             let content = from_utf8(&buf).unwrap();
 
             let styled_content = transform_html(content, bionic);

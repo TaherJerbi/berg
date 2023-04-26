@@ -27,35 +27,36 @@ pub fn bionic(text: &str) -> String {
         .unwrap_or(String::new())
 }
 
-pub fn transform_html(content: &str, f: fn(&str) -> String) -> String {
+pub fn transform_html(content: &str, transform: fn(&str) -> String) -> String {
     let mut styled_content = String::new();
     let mut in_tag = false;
-    let mut in_style = false;
-    let mut in_code = false;
+    let mut ignore_block = false;
     let mut text = String::new();
 
     for c in content.chars() {
         if c == '<' {
             in_tag = true;
             if text.len() > 0 {
-                styled_content.push_str(&f(&text));
+                styled_content.push_str(&transform(&text));
                 text = String::new();
             }
         } else if c == '>' {
             in_tag = false;
         }
 
-        if in_tag || c == '>' || in_style || in_code {
+        if in_tag || c == '>' || ignore_block {
             styled_content.push(c);
+
             if styled_content.ends_with("<style") {
-                in_style = true;
+                ignore_block = true;
             } else if styled_content.ends_with("</style") {
-                in_style = false;
+                ignore_block = false;
             }
+
             if styled_content.ends_with("<code") {
-                in_code = true;
+                ignore_block = true;
             } else if styled_content.ends_with("</code") {
-                in_code = false;
+                ignore_block = false;
             }
         } else {
             text.push(c);
