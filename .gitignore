@@ -2,3 +2,5 @@
 *.mobi
 *.html
 *.epub
+*.xhtml
+.DS_Store
